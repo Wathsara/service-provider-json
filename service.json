@@ -1,0 +1,58 @@
+{
+    "id": "00eda4fa-2ec3-464a-9beb-378545016acd",
+    "name": "with Adpative",
+    "description": "",
+    "claimConfiguration": {
+        "dialect": "LOCAL",
+        "claimMappings": [],
+        "requestedClaims": [],
+        "subject": {
+            "claimId": "http://wso2.org/claims/username",
+            "includeUserDomain": false,
+            "includeTenantDomain": false,
+            "useMappedLocalSubject": false
+        },
+        "role": {
+            "includeUserDomain": true,
+            "claimId": "http://wso2.org/claims/role"
+        }
+    },
+    "inboundProtocolConfiguration": {
+        "passiveSts": {
+            "realm": "with Adpative"
+        }
+    },
+    "authenticationSequence": {
+        "type": "DEFAULT",
+        "steps": [
+            {
+                "id": 1,
+                "options": [
+                    {
+                        "idp": "LOCAL",
+                        "authenticator": "BasicAuthenticator"
+                    }
+                ]
+            },
+            {
+                "id": 2,
+                "options": [
+                    {
+                        "idp": "LOCAL",
+                        "authenticator": "totp"
+                    }
+                ]
+            }
+        ],
+        "script": "\r\n// New-Device-Based from Template...\r\n\r\n// This script will step up authentication and send email notification in case of\r\n// a user being logging in from a new device (identified by a cookie).\r\n\r\n// Amount of time in seconds to remember a device. Set to 2 years below.\r\nvar deviceRememberPeriod = 60 * 60 * 24 * 365 * 2;\r\n\r\n// Cookie name to be set\r\nvar cookieName = 'deviceAuth';\r\n\r\n// Whether to send a notification on new device login\r\nvar sendNotification = true;\r\n\r\n// Whether to step up authentication for new device login\r\nvar stepUpAuthentication = true;\r\n\r\n// Email template to be used for new device login notification\r\nvar emailTemplate = 'UnseenDeviceLogin';\r\n\r\n\r\nvar onLoginRequest = function(context) {\r\n    executeStep(1, {\r\n        onSuccess: function (context) {\r\n            subject = context.currentKnownSubject;\r\n            if (!validateCookie(context, subject)) {\r\n                Log.debug('New device login for ' + subject.identifier);\r\n\r\n                if (sendNotification === true) {\r\n                    var templatePlaceholders = {\r\n                        'username': subject.identifier,\r\n                        'login-time': new Date().toUTCString()\r\n                    };\r\n                    var isSent = sendEmail(subject, emailTemplate, templatePlaceholders);\r\n                    if (isSent) {\r\n                         Log.debug('New device login notification sent to ' + subject.identifier);\r\n                    } else {\r\n                         Log.debug('New device login notification sending failed to ' + subject.identifier);\r\n                    }\r\n                }\r\n\r\n                if (stepUpAuthentication === true) {\r\n                    Log.debug('Stepping up authentication due to a new device login for ' + subject.identifier);\r\n                    executeStep(2, {\r\n                        onSuccess: function (context) {\r\n                            setCookie(context.response, cookieName, subject.identifier, {\r\n                                'sign': true,\r\n                                'max-age': deviceRememberPeriod\r\n                            });\r\n                        }\r\n                    });\r\n                }\r\n            }\r\n        }\r\n    });\r\n};\r\n\r\n//Validate if the user has a valid cookie with the value as subject's username\r\nvar validateCookie = function(context, subject) {\r\n    var cookieVal = getCookieValue(context.request, cookieName, {'validateSignature': true});\r\n    return subject.identifier === cookieVal;\r\n};\r\n\r\n\r\n// End of New-Device-Based.......\r\n",
+        "subjectStepId": 1,
+        "attributeStepId": 1
+    },
+    "advancedConfigurations": {
+        "saas": false,
+        "skipConsent": false,
+        "returnAuthenticatedIdpList": false,
+        "enableAuthorization": false
+    },
+    "provisioningConfigurations": {}
+}
